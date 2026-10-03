@@ -80,8 +80,58 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'EVAL_JS') {
+    runEvalJs(message.tabId || lastPageTabId, message.code)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
+
+/** Выполняет произвольный JS в контексте страницы (world: MAIN) и возвращает результат. */
+async function runEvalJs(preferredTabId, code) {
+  const src = String(code || '').trim();
+  if (!src) return { ok: false, error: 'Пустой код' };
+  const tab = await resolveTab({ tabId: preferredTabId });
+  if (!tab?.id) return { ok: false, error: 'Вкладка не найдена' };
+  if (!isInjectableUrl(tab.url || '')) {
+    return { ok: false, error: 'На этой вкладке JS выполнить нельзя' };
+  }
+
+  try {
+    const [{ result } = {}] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: 'MAIN',
+      func: async (source) => {
+        try {
+          // Оборачиваем в async-функцию: поддержка await и выражений/операторов
+          const fn = new Function(`return (async () => { ${source} })()`);
+          const value = await fn();
+          let out;
+          if (value === undefined) out = 'undefined';
+          else if (typeof value === 'string') out = value;
+          else {
+            try {
+              out = JSON.stringify(value);
+            } catch {
+              out = String(value);
+            }
+          }
+          return { ok: true, result: String(out).slice(0, 4000) };
+        } catch (e) {
+          return { ok: false, error: e?.message || String(e) };
+        }
+      },
+      args: [src],
+    });
+    lastPageTabId = tab.id;
+    return result || { ok: false, error: 'Пустой результат' };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}
 
 /** Включает/выключает ручной режим рисования на вкладке. */
 async function toggleDrawMode(tab) {
