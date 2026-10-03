@@ -133,6 +133,18 @@ label > span {
   color: var(--muted);
 }
 
+.param-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.param-toggle input {
+  margin: 0;
+  cursor: pointer;
+}
+
 input[type="text"],
 input[type="url"],
 input[type="password"],

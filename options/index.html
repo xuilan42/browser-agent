@@ -82,11 +82,21 @@
         </label>
         <div class="grid3">
           <label>
-            <span>Temperature</span>
+            <span class="param-head">
+              <span class="param-toggle">
+                <input type="checkbox" id="sendTemperature" />
+                Temperature
+              </span>
+            </span>
             <input type="number" id="temperature" min="0" max="2" step="0.1" />
           </label>
           <label>
-            <span>Top P</span>
+            <span class="param-head">
+              <span class="param-toggle">
+                <input type="checkbox" id="sendTopP" />
+                Top P
+              </span>
+            </span>
             <input type="number" id="topP" min="0" max="1" step="0.05" />
           </label>
           <label>

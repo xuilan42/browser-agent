@@ -53,7 +53,16 @@ const fields = [
   'theme',
 ];
 
-const checks = ['stream', 'includePageContext', 'includeScreenshot', 'enableActions', 'enableWebSearch', 'confirmRiskyActions'];
+const checks = [
+  'stream',
+  'includePageContext',
+  'includeScreenshot',
+  'enableActions',
+  'enableWebSearch',
+  'confirmRiskyActions',
+  'sendTemperature',
+  'sendTopP',
+];
 
 const form = document.getElementById('form');
 const saveStatus = document.getElementById('saveStatus');
@@ -86,6 +95,9 @@ async function init() {
     syncThemeSwitch(next.theme);
     flash(saveStatus, 'Сохранено', 'ok');
   });
+
+  document.getElementById('sendTemperature').addEventListener('change', syncParamToggles);
+  document.getElementById('sendTopP').addEventListener('change', syncParamToggles);
 
   btnTest.addEventListener('click', onTest);
   btnModels.addEventListener('click', onFetchModels);
@@ -160,6 +172,23 @@ function fill(settings) {
     const el = document.getElementById(key);
     if (el) el.checked = Boolean(settings[key]);
   }
+  syncParamToggles();
+}
+
+/** Серое числовое поле, когда соответствующий параметр отключён. */
+function syncParamToggles() {
+  const pairs = [
+    ['sendTemperature', 'temperature'],
+    ['sendTopP', 'topP'],
+  ];
+  for (const [toggleId, inputId] of pairs) {
+    const toggle = document.getElementById(toggleId);
+    const input = document.getElementById(inputId);
+    if (toggle && input) {
+      input.disabled = !toggle.checked;
+      input.style.opacity = toggle.checked ? '' : '0.5';
+    }
+  }
 }
 
 function read() {
@@ -183,6 +212,8 @@ function read() {
     enableActions: document.getElementById('enableActions').checked,
     enableWebSearch: document.getElementById('enableWebSearch').checked,
     confirmRiskyActions: document.getElementById('confirmRiskyActions').checked,
+    sendTemperature: document.getElementById('sendTemperature').checked,
+    sendTopP: document.getElementById('sendTopP').checked,
   };
 }
 
