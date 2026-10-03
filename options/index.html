@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Browser Agent — Настройки</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Browser Agent</p>
+        <h1>Настройки</h1>
+        <p class="lead">API, поведение агента и оформление.</p>
+      </div>
+      <div class="theme-switch" role="group" aria-label="Тема">
+        <button type="button" data-theme-set="light" title="Светлая">☀</button>
+        <button type="button" data-theme-set="dark" title="Тёмная">☾</button>
+        <button type="button" data-theme-set="system" title="Как в системе">◐</button>
+      </div>
+    </header>
+
+    <form id="form" class="card">
+      <section>
+        <h2>API</h2>
+        <label>
+          <span>Провайдер</span>
+          <select id="provider">
+            <option value="openai-compatible">OpenAI-compatible</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+        </label>
+        <label>
+          <span>Base URL</span>
+          <input type="url" id="apiBaseUrl" placeholder="https://api.openai.com/v1" required />
+        </label>
+        <label>
+          <span>API Key</span>
+          <div class="input-row">
+            <input type="password" id="apiKey" placeholder="sk-…" autocomplete="off" />
+            <button type="button" class="ghost" id="btnToggleKey" title="Показать ключ">👁</button>
+          </div>
+        </label>
+        <label>
+          <span>Model</span>
+          <div class="input-row">
+            <input type="text" id="model" list="modelList" placeholder="gpt-4o-mini" required />
+            <button type="button" class="ghost" id="btnModels">Модели</button>
+          </div>
+          <datalist id="modelList"></datalist>
+        </label>
+        <label>
+          <span>Custom headers (JSON)</span>
+          <textarea id="customHeaders" rows="3" placeholder='{"HTTP-Referer":"https://example.com","X-Title":"Browser Agent"}'></textarea>
+        </label>
+        <div class="grid2">
+          <label>
+            <span>Макс. шагов агента</span>
+            <input type="number" id="maxSteps" min="1" max="40" step="1" />
+          </label>
+          <label>
+            <span>Timeout (мс)</span>
+            <input type="number" id="timeoutMs" min="5000" max="600000" step="1000" />
+          </label>
+          <label class="check tight">
+            <input type="checkbox" id="stream" />
+            <span>Streaming ответов</span>
+          </label>
+        </div>
+        <div class="row">
+          <button type="button" class="ghost" id="btnTest">Проверить соединение</button>
+        </div>
+        <p class="note" id="testStatus"></p>
+      </section>
+
+      <section>
+        <h2>Агент</h2>
+        <label>
+          <span>System prompt</span>
+          <textarea id="systemPrompt" rows="5"></textarea>
+        </label>
+        <div class="grid3">
+          <label>
+            <span>Temperature</span>
+            <input type="number" id="temperature" min="0" max="2" step="0.1" />
+          </label>
+          <label>
+            <span>Top P</span>
+            <input type="number" id="topP" min="0" max="1" step="0.05" />
+          </label>
+          <label>
+            <span>Max tokens</span>
+            <input type="number" id="maxTokens" min="64" max="128000" step="1" />
+          </label>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="includePageContext" />
+          <span>Передавать текст и структуру страницы</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="includeScreenshot" />
+          <span>Скриншот страницы с метками элементов (vision-модели; если модель не поддерживает изображения, отключится автоматически)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="enableActions" />
+          <span>Разрешить действия на странице (клик, скролл, ввод)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="confirmRiskyActions" />
+          <span>Спрашивать подтверждение перед оплатой, удалением и отправкой форм</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="enableWebSearch" />
+          <span>Разрешить поиск в интернете (DuckDuckGo)</span>
+        </label>
+        <label>
+          <span>Лимит символов контекста</span>
+          <input type="number" id="maxContextChars" min="500" max="100000" step="500" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Оформление</h2>
+        <label>
+          <span>Тема</span>
+          <select id="theme">
+            <option value="light">Светлая</option>
+            <option value="dark">Тёмная</option>
+            <option value="system">Как в системе</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="presets">
+        <h2>Быстрые пресеты</h2>
+        <div class="preset-row">
+          <button type="button" data-preset="openai">OpenAI</button>
+          <button type="button" data-preset="openrouter">OpenRouter</button>
+          <button type="button" data-preset="anthropic">Anthropic</button>
+          <button type="button" data-preset="ollama">Ollama</button>
+          <button type="button" data-preset="lmstudio">LM Studio</button>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="submit" class="primary">Сохранить</button>
+        <p class="save-status" id="saveStatus"></p>
+      </div>
+    </form>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
