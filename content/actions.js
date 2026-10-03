@@ -26,6 +26,9 @@
           return hover(action);
         case 'draw':
           return draw(action);
+        case 'edit_dom':
+        case 'edit':
+          return editDom(action);
         case 'wait':
           await sleep(Math.min(Number(action.ms) || 500, 5000));
           return { ok: true, result: `wait ${action.ms || 500}ms` };
@@ -211,6 +214,101 @@
       }
     }
     return window.__browserAgentDraw.command(cmd);
+  }
+
+  /**
+   * Безопасная правка DOM текущей вкладки (без выполнения произвольного JS).
+   * op: text | attr | style | html | insert | remove
+   * Изменения живут только в открытой вкладке и пропадают при перезагрузке.
+   */
+  function editDom(action) {
+    const op = String(action.op || 'text').toLowerCase();
+
+    if (op === 'remove') {
+      const el = resolveElement(action);
+      if (!el) return { ok: false, error: 'Элемент не найден' };
+      const desc = describe(el);
+      el.remove();
+      return { ok: true, result: `removed ${desc}`, danger: true };
+    }
+
+    const el = resolveElement(action);
+    if (!el) return { ok: false, error: 'Элемент не найден' };
+
+    switch (op) {
+      case 'text': {
+        if (action.text == null) return { ok: false, error: 'Укажи text' };
+        el.textContent = String(action.text);
+        highlight(el);
+        return { ok: true, result: `text set on ${describe(el)}` };
+      }
+      case 'attr': {
+        const name = String(action.name || action.attr || '').trim();
+        if (!name) return { ok: false, error: 'Укажи name атрибута' };
+        if (/^on/i.test(name)) return { ok: false, error: 'Атрибуты-обработчики (on*) запрещены' };
+        if (action.value == null || action.value === false) {
+          el.removeAttribute(name);
+          return { ok: true, result: `removed attr ${name}` };
+        }
+        let value = String(action.value);
+        if (/^(href|src|xlink:href)$/i.test(name) && /^\s*javascript:/i.test(value)) {
+          return { ok: false, error: 'javascript:-ссылки запрещены' };
+        }
+        el.setAttribute(name, value);
+        highlight(el);
+        return { ok: true, result: `attr ${name}="${value.slice(0, 60)}" on ${describe(el)}` };
+      }
+      case 'style': {
+        const prop = String(action.name || action.prop || '').trim();
+        if (prop) {
+          el.style.setProperty(prop, String(action.value ?? ''));
+        } else if (action.style && typeof action.style === 'object') {
+          for (const [k, v] of Object.entries(action.style)) el.style.setProperty(k, String(v));
+        } else if (typeof action.value === 'string') {
+          el.style.cssText += ';' + action.value;
+        } else {
+          return { ok: false, error: 'Укажи name+value или style-объект' };
+        }
+        highlight(el);
+        return { ok: true, result: `style updated on ${describe(el)}` };
+      }
+      case 'html': {
+        if (action.html == null) return { ok: false, error: 'Укажи html' };
+        el.innerHTML = sanitizeHtml(String(action.html));
+        highlight(el);
+        return { ok: true, result: `innerHTML replaced on ${describe(el)}`, danger: true };
+      }
+      case 'insert': {
+        if (action.html == null) return { ok: false, error: 'Укажи html' };
+        const where = String(action.position || 'beforeend');
+        const allowed = ['beforebegin', 'afterbegin', 'beforeend', 'afterend'];
+        if (!allowed.includes(where)) {
+          return { ok: false, error: `position: ${allowed.join(' | ')}` };
+        }
+        el.insertAdjacentHTML(where, sanitizeHtml(String(action.html)));
+        highlight(el);
+        return { ok: true, result: `inserted html ${where} ${describe(el)}` };
+      }
+      default:
+        return { ok: false, error: `Неизвестная op: ${op}` };
+    }
+  }
+
+  /** Вырезает <script>, inline-обработчики и javascript:-ссылки из вставляемого HTML. */
+  function sanitizeHtml(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    tpl.content.querySelectorAll('script, iframe, object, embed').forEach((n) => n.remove());
+    tpl.content.querySelectorAll('*').forEach((node) => {
+      for (const attr of [...node.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith('on')) node.removeAttribute(attr.name);
+        else if (/^(href|src|xlink:href)$/.test(name) && /^\s*javascript:/i.test(attr.value)) {
+          node.removeAttribute(attr.name);
+        }
+      }
+    });
+    return tpl.innerHTML;
   }
 
   function resolveElement(action) {

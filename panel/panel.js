@@ -172,7 +172,7 @@ function askConfirm(reason) {
     };
     const onAbort = () => finish(false);
     signal?.addEventListener('abort', onAbort);
-    confirmText.textContent = `Агент хочет нажать ${reason}. Разрешить?`;
+    confirmText.textContent = `Агент хочет выполнить ${reason}. Разрешить?`;
     confirmBar.hidden = false;
     btnAllow.onclick = () => finish(true);
     btnDeny.onclick = () => finish(false);
