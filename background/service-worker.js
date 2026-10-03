@@ -72,8 +72,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'TOGGLE_DRAW') {
+    resolveTab({ tabId: message.tabId, windowId: message.windowId })
+      .then((tab) => toggleDrawMode(tab))
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
+
+/** Включает/выключает ручной режим рисования на вкладке. */
+async function toggleDrawMode(tab) {
+  if (!tab?.id) return { ok: false, error: 'Вкладка не найдена' };
+  if (!isInjectableUrl(tab.url || '')) {
+    return { ok: false, error: 'На этой вкладке рисовать нельзя' };
+  }
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content/draw.js'] });
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => window.__browserAgentDraw?.command({ op: 'toggle' }),
+    });
+    lastPageTabId = tab.id;
+    return result || { ok: false, error: 'draw.js не загрузился' };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}
 
 function isInjectableUrl(url) {
   if (!url) return false;
@@ -230,10 +257,12 @@ async function runPageAction(preferredTabId, action) {
   }
 
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content/actions.js'],
-    });
+    const files = ['content/actions.js'];
+    // Рисование опирается на canvas-оверлей из draw.js — подгружаем его заранее
+    if (String(action?.tool || '').toLowerCase() === 'draw') {
+      files.unshift('content/draw.js');
+    }
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files });
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: async (act) => {

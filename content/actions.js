@@ -24,6 +24,8 @@
           return selectOption(action);
         case 'hover':
           return hover(action);
+        case 'draw':
+          return draw(action);
         case 'wait':
           await sleep(Math.min(Number(action.ms) || 500, 5000));
           return { ok: true, result: `wait ${action.ms || 500}ms` };
@@ -191,6 +193,24 @@
     el.dispatchEvent(new MouseEvent('mouseenter', opts));
     el.dispatchEvent(new MouseEvent('mousemove', opts));
     return { ok: true, result: `hovered ${describe(el)}` };
+  }
+
+  function draw(action) {
+    if (typeof window.__browserAgentDraw?.command !== 'function') {
+      return { ok: false, error: 'draw.js не загружен' };
+    }
+    // Координаты рисунка относятся к одной точке у элемента по ref — переводим в viewport
+    const cmd = { ...action };
+    delete cmd.tool;
+    if (action.ref && (cmd.x == null || cmd.y == null)) {
+      const el = document.querySelector(`[data-ba-ref="${cssEscape(String(action.ref))}"]`);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        cmd.x = cmd.x ?? Math.round(r.left + r.width / 2);
+        cmd.y = cmd.y ?? Math.round(r.top + r.height / 2);
+      }
+    }
+    return window.__browserAgentDraw.command(cmd);
   }
 
   function resolveElement(action) {

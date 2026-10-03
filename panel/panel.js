@@ -9,6 +9,7 @@ const chatEl = document.getElementById('chat');
 const inputEl = document.getElementById('input');
 const btnSend = document.getElementById('btnSend');
 const btnClear = document.getElementById('btnClear');
+const btnDraw = document.getElementById('btnDraw');
 const btnSettings = document.getElementById('btnSettings');
 const btnTheme = document.getElementById('btnTheme');
 const pageHint = document.getElementById('pageHint');
@@ -54,6 +55,7 @@ async function init() {
     onSend();
   });
   btnClear.addEventListener('click', onClear);
+  btnDraw.addEventListener('click', onToggleDraw);
   btnSettings.addEventListener('click', () => chrome.runtime.openOptionsPage());
   btnTheme.addEventListener('click', cycleTheme);
 
@@ -337,6 +339,30 @@ async function onClear() {
   setTimeout(() => {
     if (!busy) statusHint.textContent = 'Enter — отправить · Shift+Enter — новая строка';
   }, 1500);
+}
+
+/** Ручной режим рисования: включает/выключает canvas-оверлей на активной вкладке. */
+async function onToggleDraw() {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: 'TOGGLE_DRAW', windowId });
+    if (res?.ok) {
+      const on = /on/.test(res.result || '');
+      btnDraw.classList.toggle('active', on);
+      flashHint(on ? 'Режим рисования включён — рисуй на странице' : 'Режим рисования выключен');
+    } else {
+      flashHint(res?.error || 'Не удалось включить рисование');
+    }
+  } catch (err) {
+    flashHint(err?.message || String(err));
+  }
+}
+
+function flashHint(text) {
+  statusHint.textContent = text;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => {
+    if (!busy) statusHint.textContent = 'Enter — отправить · Shift+Enter — новая строка';
+  }, 2000);
 }
 
 function setBusy(value) {

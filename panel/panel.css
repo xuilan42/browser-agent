@@ -164,6 +164,12 @@ body {
   color: var(--accent);
 }
 
+.icon-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
 #btnTheme .icon-moon { display: none; }
 [data-theme="dark"] #btnTheme .icon-sun { display: none; }
 [data-theme="dark"] #btnTheme .icon-moon { display: block; }
