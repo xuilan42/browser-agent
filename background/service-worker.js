@@ -90,7 +90,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-/** Выполняет произвольный JS в контексте страницы (world: MAIN) и возвращает результат. */
+/**
+ * Выполняет произвольный JS в контексте вкладки и возвращает результат.
+ * Сначала пробует MAIN-мир (видны глобальные переменные страницы: window.React и т.п.).
+ * Если страница блокирует new Function своим CSP — повторяет в ISOLATED-мире расширения
+ * (CSP страницы там не действует; доступен весь DOM).
+ */
 async function runEvalJs(preferredTabId, code) {
   const src = String(code || '').trim();
   if (!src) return { ok: false, error: 'Пустой код' };
@@ -100,36 +105,63 @@ async function runEvalJs(preferredTabId, code) {
     return { ok: false, error: 'На этой вкладке JS выполнить нельзя' };
   }
 
-  try {
+  // Эта функция сериализуется и выполняется прямо во вкладке.
+  const runner = async (source) => {
+    try {
+      // async-обёртка: поддержка await, return и просто выражений
+      const fn = new Function(`return (async () => { ${source} })()`);
+      const value = await fn();
+      let out;
+      if (value === undefined) out = 'undefined';
+      else if (typeof value === 'string') out = value;
+      else {
+        try {
+          out = JSON.stringify(value);
+        } catch {
+          out = String(value);
+        }
+      }
+      return { ok: true, result: String(out).slice(0, 16000) };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e), name: e?.name };
+    }
+  };
+
+  const exec = async (world) => {
     const [{ result } = {}] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      world: 'MAIN',
-      func: async (source) => {
-        try {
-          // Оборачиваем в async-функцию: поддержка await и выражений/операторов
-          const fn = new Function(`return (async () => { ${source} })()`);
-          const value = await fn();
-          let out;
-          if (value === undefined) out = 'undefined';
-          else if (typeof value === 'string') out = value;
-          else {
-            try {
-              out = JSON.stringify(value);
-            } catch {
-              out = String(value);
-            }
-          }
-          return { ok: true, result: String(out).slice(0, 4000) };
-        } catch (e) {
-          return { ok: false, error: e?.message || String(e) };
-        }
-      },
+      world,
+      func: runner,
       args: [src],
     });
+    return result;
+  };
+
+  try {
+    let result = await exec('MAIN');
+    // CSP страницы заблокировал new Function в MAIN — повторяем в изолированном мире
+    const cspBlocked =
+      result && result.ok === false && /content security policy|unsafe-eval|EvalError/i.test(
+        `${result.error} ${result.name || ''}`
+      );
+    if (cspBlocked) {
+      const isolated = await exec('ISOLATED');
+      if (isolated?.ok) {
+        isolated.result = `${isolated.result}\n[выполнено в изолированном мире расширения: CSP страницы заблокировал MAIN]`;
+        result = isolated;
+      }
+    }
     lastPageTabId = tab.id;
     return result || { ok: false, error: 'Пустой результат' };
   } catch (err) {
-    return { ok: false, error: err?.message || String(err) };
+    // executeScript целиком упал (напр. CSP не дал инжектнуть в MAIN) — пробуем ISOLATED
+    try {
+      const isolated = await exec('ISOLATED');
+      lastPageTabId = tab.id;
+      return isolated || { ok: false, error: err?.message || String(err) };
+    } catch (err2) {
+      return { ok: false, error: err2?.message || String(err2) };
+    }
   }
 }
 
