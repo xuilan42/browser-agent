@@ -1,4 +1,13 @@
-import { getHistory, saveHistory, clearHistory, getSettings, saveSettings, onSettingsChanged } from '../lib/storage.js';
+import {
+  getHistory,
+  saveHistory,
+  clearHistory,
+  getSettings,
+  saveSettings,
+  onSettingsChanged,
+  getInjectionsForUrl,
+  removeInjection,
+} from '../lib/storage.js';
 import { runAgent } from '../lib/agent.js';
 import { applyTheme, resolveTheme, watchSystemTheme } from '../lib/theme.js';
 import { summarizeContextMeta } from '../lib/page.js';
@@ -10,6 +19,10 @@ const inputEl = document.getElementById('input');
 const btnSend = document.getElementById('btnSend');
 const btnClear = document.getElementById('btnClear');
 const btnDraw = document.getElementById('btnDraw');
+const btnPersist = document.getElementById('btnPersist');
+const persistPanel = document.getElementById('persistPanel');
+const persistList = document.getElementById('persistList');
+const btnPersistClose = document.getElementById('btnPersistClose');
 const btnSettings = document.getElementById('btnSettings');
 const btnTheme = document.getElementById('btnTheme');
 const pageHint = document.getElementById('pageHint');
@@ -56,6 +69,8 @@ async function init() {
   });
   btnClear.addEventListener('click', onClear);
   btnDraw.addEventListener('click', onToggleDraw);
+  btnPersist.addEventListener('click', togglePersistPanel);
+  btnPersistClose.addEventListener('click', () => (persistPanel.hidden = true));
   btnSettings.addEventListener('click', () => chrome.runtime.openOptionsPage());
   btnTheme.addEventListener('click', cycleTheme);
 
@@ -363,6 +378,71 @@ function flashHint(text) {
   hintTimer = setTimeout(() => {
     if (!busy) statusHint.textContent = 'Enter — отправить · Shift+Enter — новая строка';
   }, 2000);
+}
+
+/** Активная вкладка окна, в котором открыта панель. */
+async function activeTab() {
+  try {
+    const q = windowId != null ? { active: true, windowId } : { active: true, lastFocusedWindow: true };
+    const [tab] = await chrome.tabs.query(q);
+    return tab || null;
+  } catch {
+    return null;
+  }
+}
+
+async function togglePersistPanel() {
+  if (!persistPanel.hidden) {
+    persistPanel.hidden = true;
+    return;
+  }
+  await renderPersistList();
+  persistPanel.hidden = false;
+}
+
+async function renderPersistList() {
+  const tab = await activeTab();
+  const items = tab?.url ? await getInjectionsForUrl(tab.url) : [];
+  persistList.innerHTML = '';
+
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'persist-empty';
+    empty.textContent = 'Для этой страницы нет сохранённых элементов.';
+    persistList.appendChild(empty);
+    return;
+  }
+
+  for (const rec of items) {
+    const row = document.createElement('div');
+    row.className = 'persist-item';
+
+    const info = document.createElement('div');
+    info.className = 'persist-info';
+    const scope = rec.scope === 'origin' ? 'весь домен' : 'эта страница';
+    info.innerHTML =
+      `<span class="persist-scope">${scope}</span>` +
+      `<span class="persist-sel">${escapeText(rec.selector)} · ${escapeText(rec.position)}</span>`;
+    info.title = rec.html || '';
+
+    const del = document.createElement('button');
+    del.className = 'persist-del';
+    del.textContent = 'Удалить';
+    del.onclick = async () => {
+      await removeInjection(rec.id);
+      await renderPersistList();
+      flashHint('Элемент удалён (обнови страницу, чтобы он исчез там)');
+    };
+
+    row.append(info, del);
+    persistList.appendChild(row);
+  }
+}
+
+function escapeText(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s ?? '');
+  return d.innerHTML;
 }
 
 function setBusy(value) {

@@ -3,6 +3,12 @@
  */
 
 import { webSearch, fetchUrlText, extractSearchResultsFromPage } from '../lib/search.js';
+import {
+  addInjection,
+  removeInjection,
+  getInjectionsForUrl,
+  injectionMatchKey,
+} from '../lib/storage.js';
 
 /** @type {number|null} */
 let lastPageTabId = null;
@@ -87,8 +93,64 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'PERSIST_ADD') {
+    persistAdd(message)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
+  if (message?.type === 'PERSIST_LIST') {
+    persistList(message)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
+  if (message?.type === 'PERSIST_REMOVE') {
+    removeInjection(message.id)
+      .then((count) => sendResponse({ ok: count > 0, result: count > 0 ? 'удалено' : 'не найдено' }))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
+
+/** Сохраняет постоянную вставку и сразу применяет её к текущей вкладке. */
+async function persistAdd(message) {
+  const tab = await resolveTab({ tabId: message.tabId, windowId: message.windowId });
+  if (!tab?.id || !isInjectableUrl(tab.url || '')) {
+    return { ok: false, error: 'Вкладка недоступна для вставки' };
+  }
+  const scope = message.scope === 'origin' ? 'origin' : 'url';
+  const entry = await addInjection({
+    scope,
+    match: injectionMatchKey(tab.url, scope),
+    selector: message.selector,
+    position: message.position,
+    html: message.html,
+    css: message.css,
+  });
+  lastPageTabId = tab.id;
+  // persist.js подхватит изменение через storage.onChanged и вставит элемент без перезагрузки
+  return {
+    ok: true,
+    result: `сохранено (${scope === 'origin' ? 'весь домен' : 'эта страница'}), id=${entry.id}`,
+    id: entry.id,
+  };
+}
+
+async function persistList(message) {
+  const tab = await resolveTab({ tabId: message.tabId, windowId: message.windowId });
+  if (!tab?.url) return { ok: true, result: [], items: [] };
+  const items = await getInjectionsForUrl(tab.url);
+  return {
+    ok: true,
+    items,
+    result: items.map((r) => `${r.id} [${r.scope}] ${r.selector} ${r.position}`),
+  };
+}
 
 /**
  * Выполняет произвольный JS в контексте вкладки и возвращает результат.
