@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Browser Agent",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Умный агент в браузере: страница, клики, поиск в интернете, чат и API — в боковой панели",
   "permissions": [
     "storage",

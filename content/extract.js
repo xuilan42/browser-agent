@@ -95,9 +95,26 @@
         '[contenteditable="true"]',
         '[onclick]',
         '[tabindex]:not([tabindex="-1"])',
+        // Пункты раскрытых выпадающих списков / автодополнения / меню
+        '[role="option"]',
+        '[role="menuitem"]',
+        '[role="menuitemcheckbox"]',
+        '[role="menuitemradio"]',
+        '[role="treeitem"]',
+        '[role="combobox"]',
+        '[role="listbox"] li',
+        '[role="menu"] li',
+        'datalist option',
+        '.option',
+        '.dropdown-item',
+        '.select__option',
+        '.autocomplete-item',
+        '[aria-selected]',
       ].join(',');
       const vw = window.innerWidth;
       const vh = window.innerHeight;
+      const POPUP_SEL =
+        '[role="listbox"],[role="menu"],[role="combobox"],[aria-expanded="true"],[class*="dropdown"],[class*="autocomplete"],[class*="menu"],[class*="popover"],[class*="popup"]';
       const candidates = [];
       for (const el of document.querySelectorAll(interactiveSel)) {
         const style = window.getComputedStyle(el);
@@ -105,13 +122,23 @@
         const rect = el.getBoundingClientRect();
         if (rect.width < 1 && rect.height < 1) continue;
         const inView = rect.bottom > 0 && rect.right > 0 && rect.top < vh && rect.left < vw;
-        candidates.push({ el, rect, inView });
+        // Пункт внутри раскрытого выпадающего слоя — показываем в приоритете
+        const role = (el.getAttribute('role') || '').toLowerCase();
+        const inPopup =
+          role === 'option' ||
+          role === 'menuitem' ||
+          Boolean(el.closest(POPUP_SEL));
+        candidates.push({ el, rect, inView, inPopup });
       }
-      // Сначала то, что видно на экране (оно же на скриншоте), затем остальное
-      candidates.sort((x, y) => Number(y.inView) - Number(x.inView));
+      // Приоритет: пункты раскрытых списков → видимое на экране → остальное
+      candidates.sort(
+        (x, y) =>
+          Number(y.inPopup && y.inView) - Number(x.inPopup && x.inView) ||
+          Number(y.inView) - Number(x.inView)
+      );
 
       const interactive = [];
-      for (const { el, rect, inView } of candidates.slice(0, 100)) {
+      for (const { el, rect, inView, inPopup } of candidates.slice(0, 150)) {
         const ref = `e${interactive.length + 1}`;
         el.setAttribute('data-ba-ref', ref);
         const tag = el.tagName.toLowerCase();
@@ -133,6 +160,7 @@
           href: tag === 'a' ? absoluteUrl(el.getAttribute('href') || '').slice(0, 180) : undefined,
           name: el.getAttribute('name') || el.id || undefined,
           inView,
+          popup: inPopup || undefined,
           at: inView
             ? `${Math.round(rect.left + rect.width / 2)},${Math.round(rect.top + rect.height / 2)}`
             : undefined,
