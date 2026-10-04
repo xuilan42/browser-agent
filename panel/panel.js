@@ -253,6 +253,8 @@ async function onSend() {
     statusHint.textContent = 'Смотрю страницу…';
     // Каждый запрос заново читает вкладку — в т.ч. «чё на этой странице»
     const pageContext = await getPageContext({ withScreenshot: true });
+    // windowId нужен агенту для list_tabs (вкладки окна, где открыта панель)
+    if (pageContext && windowId != null) pageContext.windowId = windowId;
     const meta = summarizeContextMeta(pageContext);
     pageHint.textContent = meta.label;
     pageHint.classList.toggle('ok', meta.ok);

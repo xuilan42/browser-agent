@@ -114,8 +114,88 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === 'LIST_TABS') {
+    listTabs(message)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
+  if (message?.type === 'SWITCH_TAB') {
+    switchTab(message)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
+  if (message?.type === 'CLOSE_TAB') {
+    closeTab(message)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
   return false;
 });
+
+/** Список вкладок окна панели (или последнего активного окна). */
+async function listTabs(message) {
+  let windowId = message.windowId;
+  if (windowId == null) {
+    try {
+      windowId = (await chrome.windows.getLastFocused()).id;
+    } catch {
+      /* ignore */
+    }
+  }
+  const tabs = await chrome.tabs.query(windowId != null ? { windowId } : {});
+  const items = tabs.map((t) => ({
+    tabId: t.id,
+    title: (t.title || '').slice(0, 120),
+    url: t.url || '',
+    active: Boolean(t.active),
+    current: t.id === lastPageTabId,
+    injectable: isInjectableUrl(t.url || ''),
+  }));
+  return { ok: true, items, result: items.map((t) => `${t.tabId}${t.current ? '*' : ''} ${t.title} — ${t.url}`) };
+}
+
+/** Делает вкладку рабочей (lastPageTabId) и опционально выводит её на передний план. */
+async function switchTab(message) {
+  const tabId = Number(message.tabId);
+  if (!Number.isFinite(tabId)) return { ok: false, error: 'Укажи tabId' };
+  let tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return { ok: false, error: 'Вкладка не найдена' };
+  }
+  if (!isInjectableUrl(tab.url || '')) {
+    return { ok: false, error: 'На этой вкладке работать нельзя (системная страница)' };
+  }
+  lastPageTabId = tabId;
+  if (message.active) {
+    try {
+      await chrome.tabs.update(tabId, { active: true });
+      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  return { ok: true, result: `рабочая вкладка: ${tabId}`, tabId };
+}
+
+async function closeTab(message) {
+  const tabId = Number(message.tabId);
+  if (!Number.isFinite(tabId)) return { ok: false, error: 'Укажи tabId' };
+  try {
+    await chrome.tabs.remove(tabId);
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+  if (lastPageTabId === tabId) lastPageTabId = null;
+  return { ok: true, result: `закрыта вкладка ${tabId}` };
+}
 
 /** Сохраняет постоянную вставку и сразу применяет её к текущей вкладке. */
 async function persistAdd(message) {

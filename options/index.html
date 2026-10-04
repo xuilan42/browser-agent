@@ -57,7 +57,7 @@
         <div class="grid2">
           <label>
             <span>Макс. шагов агента</span>
-            <input type="number" id="maxSteps" min="1" max="40" step="1" />
+            <input type="number" id="maxSteps" min="1" max="60" step="1" />
           </label>
           <label>
             <span>Timeout (мс)</span>
@@ -127,6 +127,10 @@
         <label class="check">
           <input type="checkbox" id="enableEvalJs" />
           <span>⚠️ Разрешить выполнение произвольного JS на странице (eval_js) — опасно, по умолчанию выкл.</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="autonomousMode" />
+          <span>🤖 Автономный режим: действовать без подтверждений (доступен только при включённом выполнении JS)</span>
         </label>
         <label>
           <span>Лимит символов контекста</span>

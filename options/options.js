@@ -60,6 +60,7 @@ const checks = [
   'enableActions',
   'enableWebSearch',
   'enableEvalJs',
+  'autonomousMode',
   'confirmRiskyActions',
   'sendTemperature',
   'sendTopP',
@@ -99,6 +100,7 @@ async function init() {
 
   document.getElementById('sendTemperature').addEventListener('change', syncParamToggles);
   document.getElementById('sendTopP').addEventListener('change', syncParamToggles);
+  document.getElementById('enableEvalJs').addEventListener('change', syncParamToggles);
 
   btnTest.addEventListener('click', onTest);
   btnModels.addEventListener('click', onFetchModels);
@@ -190,6 +192,15 @@ function syncParamToggles() {
       input.style.opacity = toggle.checked ? '' : '0.5';
     }
   }
+
+  // Автономный режим доступен только при включённом выполнении JS
+  const evalOn = document.getElementById('enableEvalJs')?.checked;
+  const auto = document.getElementById('autonomousMode');
+  if (auto) {
+    auto.disabled = !evalOn;
+    if (!evalOn) auto.checked = false;
+    auto.closest('.check').style.opacity = evalOn ? '' : '0.5';
+  }
 }
 
 function read() {
@@ -213,6 +224,7 @@ function read() {
     enableActions: document.getElementById('enableActions').checked,
     enableWebSearch: document.getElementById('enableWebSearch').checked,
     enableEvalJs: document.getElementById('enableEvalJs').checked,
+    autonomousMode: document.getElementById('autonomousMode').checked,
     confirmRiskyActions: document.getElementById('confirmRiskyActions').checked,
     sendTemperature: document.getElementById('sendTemperature').checked,
     sendTopP: document.getElementById('sendTopP').checked,
