@@ -3,6 +3,7 @@
  */
 
 import { webSearch, fetchUrlText, extractSearchResultsFromPage } from '../lib/search.js';
+import { runNetCmd } from '../lib/netcmd.js';
 import {
   addInjection,
   removeInjection,
@@ -130,6 +131,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message?.type === 'CLOSE_TAB') {
     closeTab(message)
+      .then((result) => sendResponse(result))
+      .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
+    return true;
+  }
+
+  if (message?.type === 'NET_CMD') {
+    runNetCmd(message)
       .then((result) => sendResponse(result))
       .catch((err) => sendResponse({ ok: false, error: err?.message || String(err) }));
     return true;
