@@ -3,7 +3,6 @@ import { createProvider, validateApiSettings } from '../lib/api.js';
 import { applyTheme, watchSystemTheme, loadThemes } from '../lib/theme.js';
 import {
   getAllThemes,
-  getCustomThemes,
   saveCustomTheme,
   removeCustomTheme,
   THEME_VARS,
@@ -223,6 +222,7 @@ function initThemeEditor() {
   document.getElementById('btnThemePreview')?.addEventListener('click', previewDraftTheme);
   document.getElementById('btnThemeSave')?.addEventListener('click', saveDraftTheme);
   document.getElementById('btnThemeCancel')?.addEventListener('click', closeThemeForm);
+  document.getElementById('themeSearch')?.addEventListener('input', renderCustomThemes);
 }
 
 /** Создаёт поля цвет+hex по каждой переменной темы. */
@@ -260,6 +260,11 @@ function buildColorInputs() {
 
 function openThemeForm(theme) {
   editingThemeId = theme?.id || null;
+  const title = document.getElementById('themeFormTitle');
+  if (title) title.textContent = theme ? `Изменить: ${theme.name}` : 'Новая тема';
+  const idea = document.getElementById('themeIdea');
+  if (idea) idea.value = '';
+  flash2(themeAiNote, 'ИИ использует твои настройки API (как в чате). Либо задай цвета вручную ниже.', '');
   themeNameEl.value = theme?.name || '';
   themeBaseEl.value = theme?.base === 'dark' ? 'dark' : 'light';
   const vars = theme?.vars || {};
@@ -271,6 +276,7 @@ function openThemeForm(theme) {
     if (/^#[0-9a-f]{6}$/i.test(vars[key] || '')) swatch.value = vars[key];
   }
   themeForm.hidden = false;
+  themeForm.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function closeThemeForm() {
@@ -347,41 +353,83 @@ async function saveDraftTheme() {
   }
 }
 
-/** Список пользовательских тем: редактировать / удалить. */
+/** Список всех тем: название слева, кнопки (применить/изменить/удалить) справа. */
 async function renderCustomThemes() {
   const box = document.getElementById('customThemeList');
   if (!box) return;
-  const custom = (await getCustomThemes()).filter((t) => t.id !== '__preview__');
+
+  const query = (document.getElementById('themeSearch')?.value || '').trim().toLowerCase();
+  const active = (await getSettings()).theme;
+  const all = (await getAllThemes()).filter((t) => t.id !== '__preview__');
+  const list = query ? all.filter((t) => t.name.toLowerCase().includes(query)) : all;
+
   box.innerHTML = '';
-  if (!custom.length) return;
+  if (!list.length) {
+    const empty = document.createElement('div');
+    empty.className = 'theme-empty';
+    empty.textContent = query ? 'Ничего не найдено' : 'Нет тем';
+    box.appendChild(empty);
+    return;
+  }
 
-  for (const t of custom) {
+  for (const t of list) {
     const row = document.createElement('div');
-    row.className = 'theme-row';
+    row.className = 'theme-row' + (t.id === active ? ' is-active' : '');
+
     const label = document.createElement('span');
-    label.textContent = `${t.name} (${t.base})`;
+    label.className = 'theme-row-name';
+    label.textContent = t.name;
+    if (!t.builtin) {
+      const tag = document.createElement('em');
+      tag.className = 'theme-row-tag';
+      tag.textContent = t.base;
+      label.appendChild(tag);
+    }
 
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.textContent = 'Изменить';
-    edit.onclick = () => openThemeForm(t);
+    const actions = document.createElement('div');
+    actions.className = 'theme-row-actions';
 
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'theme-del';
-    del.textContent = 'Удалить';
-    del.onclick = async () => {
-      await removeCustomTheme(t.id);
-      const settings = await getSettings();
-      if (settings.theme === t.id) await saveSettings({ theme: SYSTEM_THEME_ID });
-      await loadThemes();
-      await populateThemeSelect();
+    const apply = iconAction(t.id === active ? '✓' : 'Выбрать', 'Применить тему');
+    apply.disabled = t.id === active;
+    apply.onclick = async () => {
+      applyTheme(t.id);
+      syncThemeSwitch(t.id);
+      if (themeSelect) themeSelect.value = t.id;
+      await saveSettings({ theme: t.id });
       await renderCustomThemes();
-      applyTheme((await getSettings()).theme);
     };
-    row.append(label, edit, del);
+    actions.appendChild(apply);
+
+    if (!t.builtin) {
+      const edit = iconAction('✎', 'Изменить тему');
+      edit.onclick = () => openThemeForm(t);
+      actions.appendChild(edit);
+
+      const del = iconAction('🗑', 'Удалить тему');
+      del.classList.add('theme-del');
+      del.onclick = async () => {
+        await removeCustomTheme(t.id);
+        if ((await getSettings()).theme === t.id) await saveSettings({ theme: SYSTEM_THEME_ID });
+        await loadThemes();
+        await populateThemeSelect();
+        await renderCustomThemes();
+        applyTheme((await getSettings()).theme);
+      };
+      actions.appendChild(del);
+    }
+
+    row.append(label, actions);
     box.appendChild(row);
   }
+}
+
+function iconAction(label, title) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'theme-row-btn';
+  b.textContent = label;
+  b.title = title;
+  return b;
 }
 
 function flash2(el, text, cls) {

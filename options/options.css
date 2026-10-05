@@ -298,48 +298,51 @@ textarea {
   .page-header { flex-direction: column; }
 }
 
-/* Каркас редактора тем */
-.theme-editor {
+/* Менеджер тем: верх (поиск + «+»), низ (список), форма-панель */
+.theme-manager {
   margin-top: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line, #c5d0d8);
-  border-radius: 10px;
 }
 
-.theme-editor-head {
+.theme-manager-top {
   display: flex;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  font-weight: 600;
 }
 
-#btnNewTheme {
+#themeSearch {
+  flex: 1;
+  font: inherit;
+  padding: 7px 10px;
   border: 1px solid var(--line, #c5d0d8);
-  background: transparent;
   border-radius: 8px;
-  padding: 4px 10px;
+  background: var(--input-bg, #fff);
+  color: var(--ink, #14212b);
+}
+
+.theme-add {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  line-height: 1;
+  border: 1px solid var(--accent, #0f766e);
+  background: var(--accent, #0f766e);
+  color: var(--accent-ink, #ecfdf5);
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.8rem;
 }
 
-#btnNewTheme:hover {
-  border-color: var(--accent, #0f766e);
-  color: var(--accent, #0f766e);
-}
-
-.theme-editor-note {
-  margin: 6px 0 8px;
-}
-
-.theme-editor-list {
+.theme-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  margin-top: 10px;
 }
 
-.theme-editor-list:empty {
-  display: none;
+.theme-empty {
+  font-size: 0.82rem;
+  color: var(--muted, #5a6b76);
+  padding: 8px 0;
 }
 
 .theme-row {
@@ -347,17 +350,87 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 0.82rem;
+  padding: 7px 10px;
+  border: 1px solid var(--line, #c5d0d8);
+  border-radius: 8px;
+  font-size: 0.85rem;
 }
 
-.theme-row button {
-  border: 1px solid var(--danger-line, #fecdca);
-  background: var(--danger-bg, #fef3f2);
-  color: var(--danger, #b42318);
+.theme-row.is-active {
+  border-color: var(--accent, #0f766e);
+  box-shadow: inset 0 0 0 1px var(--accent, #0f766e);
+}
+
+.theme-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-row-tag {
+  font-size: 0.7rem;
+  font-style: normal;
+  color: var(--muted, #5a6b76);
+  border: 1px solid var(--line, #c5d0d8);
+  border-radius: 5px;
+  padding: 0 5px;
+}
+
+.theme-row-actions {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.theme-row-btn {
+  border: 1px solid var(--line, #c5d0d8);
+  background: transparent;
+  color: var(--ink, #14212b);
   border-radius: 7px;
-  padding: 3px 8px;
+  padding: 4px 8px;
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
+}
+
+.theme-row-btn:hover:not(:disabled) {
+  border-color: var(--accent, #0f766e);
+  color: var(--accent, #0f766e);
+}
+
+.theme-row-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.theme-row-btn.theme-del:hover {
+  border-color: var(--danger-line, #fecdca);
+  color: var(--danger, #b42318);
+}
+
+.theme-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.theme-form-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #5a6b76);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.theme-form-close:hover {
+  color: var(--ink, #14212b);
 }
 
 /* Редактор тем: ИИ + ручная правка */
@@ -477,23 +550,6 @@ textarea {
   background: var(--accent, #0f766e);
   color: var(--accent-ink, #ecfdf5);
   font-weight: 600;
-}
-
-.theme-new-btn {
-  margin-top: 10px;
-  border: 1px dashed var(--line, #c5d0d8);
-  background: transparent;
-  color: var(--muted, #5a6b76);
-  border-radius: 8px;
-  padding: 6px 12px;
-  cursor: pointer;
-  width: 100%;
-}
-
-.theme-row .theme-del {
-  border-color: var(--danger-line, #fecdca);
-  background: var(--danger-bg, #fef3f2);
-  color: var(--danger, #b42318);
 }
 
 @media (max-width: 560px) {

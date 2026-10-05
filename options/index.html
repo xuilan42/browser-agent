@@ -149,20 +149,31 @@
           </select>
         </label>
 
-        <div class="theme-editor" id="themeEditor">
-          <div class="theme-editor-head">
-            <span>Свои темы</span>
+        <div class="theme-manager" id="themeManager">
+          <!-- Верх: поиск слева, кнопка добавления справа -->
+          <div class="theme-manager-top">
+            <input type="search" id="themeSearch" placeholder="Поиск тем…" autocomplete="off" />
+            <button type="button" id="btnNewTheme" class="theme-add" title="Добавить тему" aria-label="Добавить тему">+</button>
           </div>
 
-          <!-- Генерация темы ИИ: описал словами → кнопка → заполнит поля -->
-          <div class="theme-ai">
-            <textarea id="themeIdea" rows="2" placeholder="Опиши тему: напр. «тёплый закат, бежевый фон, оранжевый акцент» или «неон-киберпанк»"></textarea>
-            <button type="button" id="btnThemeAi" title="Сгенерировать тему ИИ">Сделать ИИ</button>
-          </div>
-          <p class="note" id="themeAiNote">ИИ использует твои настройки API (как в чате). Результат можно подправить ниже.</p>
+          <!-- Низ: список тем (название слева, кнопки справа) -->
+          <div class="theme-list" id="customThemeList"></div>
 
-          <!-- Поля темы: заполняются ИИ или вручную -->
+          <!-- Форма создания/редактирования: открывается по «+» или «Изменить» -->
           <div class="theme-form" id="themeForm" hidden>
+            <div class="theme-form-head">
+              <span id="themeFormTitle">Новая тема</span>
+              <button type="button" id="btnThemeCancel" class="theme-form-close" aria-label="Закрыть">✕</button>
+            </div>
+
+            <!-- Способ 1: ИИ по описанию -->
+            <div class="theme-ai">
+              <textarea id="themeIdea" rows="2" placeholder="Опиши тему: напр. «тёплый закат, бежевый фон, оранжевый акцент» или «неон-киберпанк»"></textarea>
+              <button type="button" id="btnThemeAi" title="Сгенерировать тему ИИ">Сделать ИИ</button>
+            </div>
+            <p class="note" id="themeAiNote">ИИ использует твои настройки API (как в чате). Либо задай цвета вручную ниже.</p>
+
+            <!-- Способ 2: вручную -->
             <div class="theme-form-row">
               <label class="theme-name">
                 <span>Название</span>
@@ -180,12 +191,8 @@
             <div class="theme-form-actions">
               <button type="button" id="btnThemePreview">Предпросмотр</button>
               <button type="button" id="btnThemeSave" class="primary">Сохранить тему</button>
-              <button type="button" id="btnThemeCancel">Отмена</button>
             </div>
           </div>
-
-          <button type="button" id="btnNewTheme" class="theme-new-btn" title="Создать тему вручную">+ Новая тема вручную</button>
-          <div class="theme-editor-list" id="customThemeList"></div>
         </div>
       </section>
 
