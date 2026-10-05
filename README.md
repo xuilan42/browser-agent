@@ -85,7 +85,8 @@ lib/
   search.js              — веб-поиск и чтение URL
   storage.js             — настройки (sync), ключ API (local) и история
   markdown.js            — безопасный Markdown → HTML
-  theme.js               — light / dark / system
+  theme.js               — применение темы по id (system/light/dark/своя), инжект переменных
+  themes.js              — реестр тем: встроенные + пользовательские (storage), CSS-переменные
 ```
 
 ## Лицензия

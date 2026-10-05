@@ -297,3 +297,65 @@ textarea {
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .page-header { flex-direction: column; }
 }
+
+/* Каркас редактора тем */
+.theme-editor {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #c5d0d8);
+  border-radius: 10px;
+}
+
+.theme-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+#btnNewTheme {
+  border: 1px solid var(--line, #c5d0d8);
+  background: transparent;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+#btnNewTheme:hover {
+  border-color: var(--accent, #0f766e);
+  color: var(--accent, #0f766e);
+}
+
+.theme-editor-note {
+  margin: 6px 0 8px;
+}
+
+.theme-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theme-editor-list:empty {
+  display: none;
+}
+
+.theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.theme-row button {
+  border: 1px solid var(--danger-line, #fecdca);
+  background: var(--danger-bg, #fef3f2);
+  color: var(--danger, #b42318);
+  border-radius: 7px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}

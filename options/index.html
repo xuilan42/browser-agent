@@ -143,11 +143,24 @@
         <label>
           <span>Тема</span>
           <select id="theme">
+            <option value="system">Как в системе</option>
             <option value="light">Светлая</option>
             <option value="dark">Тёмная</option>
-            <option value="system">Как в системе</option>
           </select>
         </label>
+
+        <!-- Каркас под пользовательские темы. Движок применения тем готов;
+             редактор цветов — заготовка (можно расширять в lib/themes.js). -->
+        <div class="theme-editor" id="themeEditor">
+          <div class="theme-editor-head">
+            <span>Свои темы</span>
+            <button type="button" id="btnNewTheme" title="Создать тему на основе текущей">+ Новая тема</button>
+          </div>
+          <p class="note theme-editor-note" id="themeEditorNote">
+            Создай свою тему на основе светлой/тёмной и подправь цвета. Темы сохраняются локально.
+          </p>
+          <div class="theme-editor-list" id="customThemeList"></div>
+        </div>
       </section>
 
       <section class="presets">

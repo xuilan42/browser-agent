@@ -1,6 +1,13 @@
 import { DEFAULT_SETTINGS, getSettings, saveSettings, onSettingsChanged } from '../lib/storage.js';
 import { createProvider, validateApiSettings } from '../lib/api.js';
-import { applyTheme, watchSystemTheme } from '../lib/theme.js';
+import { applyTheme, watchSystemTheme, loadThemes } from '../lib/theme.js';
+import {
+  getAllThemes,
+  getCustomThemes,
+  saveCustomTheme,
+  removeCustomTheme,
+  SYSTEM_THEME_ID,
+} from '../lib/themes.js';
 
 const PRESETS = {
   openai: {
@@ -79,6 +86,11 @@ init();
 
 async function init() {
   const settings = await getSettings();
+  await loadThemes();
+  await populateThemeSelect();
+  await renderCustomThemes();
+  const btnNewTheme = document.getElementById('btnNewTheme');
+  if (btnNewTheme) btnNewTheme.addEventListener('click', onNewTheme);
   fill(settings);
   applyTheme(settings.theme);
   syncThemeSwitch(settings.theme);
@@ -164,6 +176,79 @@ function syncThemeSwitch(theme) {
   document.querySelectorAll('[data-theme-set]').forEach((btn) => {
     btn.classList.toggle('active', btn.getAttribute('data-theme-set') === theme);
   });
+}
+
+/** Наполняет селектор темы из реестра: system + встроенные + пользовательские. */
+async function populateThemeSelect() {
+  if (!themeSelect) return;
+  const current = themeSelect.value;
+  const themes = await getAllThemes();
+  themeSelect.innerHTML = '';
+
+  const addOpt = (value, label) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    themeSelect.appendChild(opt);
+  };
+  addOpt(SYSTEM_THEME_ID, 'Как в системе');
+  for (const t of themes) addOpt(t.id, t.name + (t.builtin ? '' : ' (своя)'));
+
+  if (current && [...themeSelect.options].some((o) => o.value === current)) {
+    themeSelect.value = current;
+  }
+}
+
+/** Создать свою тему на основе текущей выбранной (каркас: цвета наследуются от базы). */
+async function onNewTheme() {
+  const name = (window.prompt('Название темы:', 'Моя тема') || '').trim();
+  if (!name) return;
+  // база: если выбрана тёмная/light-производная — берём её; иначе light
+  const base = /dark/i.test(themeSelect.value) ? 'dark' : 'light';
+  try {
+    const theme = await saveCustomTheme({ name, base, vars: {} });
+    await loadThemes();
+    await populateThemeSelect();
+    await renderCustomThemes();
+    themeSelect.value = theme.id;
+    applyTheme(theme.id);
+    syncThemeSwitch(theme.id);
+    await saveSettings({ theme: theme.id });
+    flash(saveStatus, `Тема «${theme.name}» создана. Цвета пока как у базовой — редактор в разработке.`, 'ok');
+  } catch (err) {
+    flash(saveStatus, err?.message || String(err), 'err');
+  }
+}
+
+/** Список пользовательских тем с кнопкой удаления. */
+async function renderCustomThemes() {
+  const box = document.getElementById('customThemeList');
+  if (!box) return;
+  const custom = await getCustomThemes();
+  box.innerHTML = '';
+  if (!custom.length) return;
+
+  for (const t of custom) {
+    const row = document.createElement('div');
+    row.className = 'theme-row';
+    const label = document.createElement('span');
+    label.textContent = `${t.name} (${t.base})`;
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Удалить';
+    del.onclick = async () => {
+      await removeCustomTheme(t.id);
+      // если удалили активную — вернуться к системной
+      const settings = await getSettings();
+      if (settings.theme === t.id) await saveSettings({ theme: SYSTEM_THEME_ID });
+      await loadThemes();
+      await populateThemeSelect();
+      await renderCustomThemes();
+      applyTheme((await getSettings()).theme);
+    };
+    row.append(label, del);
+    box.appendChild(row);
+  }
 }
 
 function fill(settings) {

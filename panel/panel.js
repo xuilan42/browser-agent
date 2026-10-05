@@ -9,7 +9,7 @@ import {
   removeInjection,
 } from '../lib/storage.js';
 import { runAgent } from '../lib/agent.js';
-import { applyTheme, resolveTheme, watchSystemTheme } from '../lib/theme.js';
+import { applyTheme, resolveTheme, watchSystemTheme, loadThemes } from '../lib/theme.js';
 import { summarizeContextMeta } from '../lib/page.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { labelAction } from '../lib/tools.js';
@@ -53,6 +53,7 @@ async function init() {
   }
   const settings = await getSettings();
   themePref = settings.theme || 'system';
+  await loadThemes(); // подтянуть пользовательские темы перед применением
   applyTheme(themePref);
   watchSystemTheme(async () => themePref);
 
