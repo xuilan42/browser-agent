@@ -13,6 +13,7 @@ import { applyTheme, resolveTheme, watchSystemTheme, loadThemes } from '../lib/t
 import { summarizeContextMeta } from '../lib/page.js';
 import { renderMarkdown } from '../lib/markdown.js';
 import { labelAction } from '../lib/tools.js';
+import { detectBrand, brandSvg } from '../lib/modelicon.js';
 
 const chatEl = document.getElementById('chat');
 const inputEl = document.getElementById('input');
@@ -27,6 +28,7 @@ const btnSettings = document.getElementById('btnSettings');
 const btnTheme = document.getElementById('btnTheme');
 const pageHint = document.getElementById('pageHint');
 const statusHint = document.getElementById('statusHint');
+const brandMark = document.querySelector('.brand-mark');
 const confirmBar = document.getElementById('confirmBar');
 const confirmText = document.getElementById('confirmText');
 const btnAllow = document.getElementById('btnAllow');
@@ -56,6 +58,8 @@ async function init() {
   await loadThemes(); // подтянуть пользовательские темы перед применением
   applyTheme(themePref);
   watchSystemTheme(async () => themePref);
+
+  updateBrandIcon(settings);
 
   messages = await getHistory();
   render();
@@ -90,7 +94,23 @@ async function init() {
   onSettingsChanged((next) => {
     themePref = next.theme || 'system';
     applyTheme(themePref);
+    updateBrandIcon(next);
   });
+}
+
+/** Иконка провайдера модели в шапке (по настройкам). Нет совпадения — дефолтный градиент. */
+function updateBrandIcon(settings) {
+  if (!brandMark) return;
+  const brand = detectBrand(settings || {});
+  if (brand) {
+    brandMark.innerHTML = brandSvg(brand);
+    brandMark.classList.add('has-logo');
+    brandMark.title = brand.label;
+  } else {
+    brandMark.innerHTML = '';
+    brandMark.classList.remove('has-logo');
+    brandMark.removeAttribute('title');
+  }
 }
 
 async function cycleTheme() {

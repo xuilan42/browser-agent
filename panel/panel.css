@@ -100,10 +100,20 @@ body {
   height: 32px;
   border-radius: 10px;
   flex-shrink: 0;
+  overflow: hidden;
   background:
     radial-gradient(circle at 30% 30%, #5eead4, transparent 45%),
     linear-gradient(145deg, #0f766e, #134e4a);
   box-shadow: var(--shadow);
+}
+
+/* Когда подставлен логотип провайдера — убираем дефолтный градиент */
+.brand-mark.has-logo {
+  background: none;
+}
+
+.brand-mark svg {
+  display: block;
 }
 
 .brand-text {
