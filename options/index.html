@@ -149,16 +149,42 @@
           </select>
         </label>
 
-        <!-- Каркас под пользовательские темы. Движок применения тем готов;
-             редактор цветов — заготовка (можно расширять в lib/themes.js). -->
         <div class="theme-editor" id="themeEditor">
           <div class="theme-editor-head">
             <span>Свои темы</span>
-            <button type="button" id="btnNewTheme" title="Создать тему на основе текущей">+ Новая тема</button>
           </div>
-          <p class="note theme-editor-note" id="themeEditorNote">
-            Создай свою тему на основе светлой/тёмной и подправь цвета. Темы сохраняются локально.
-          </p>
+
+          <!-- Генерация темы ИИ: описал словами → кнопка → заполнит поля -->
+          <div class="theme-ai">
+            <textarea id="themeIdea" rows="2" placeholder="Опиши тему: напр. «тёплый закат, бежевый фон, оранжевый акцент» или «неон-киберпанк»"></textarea>
+            <button type="button" id="btnThemeAi" title="Сгенерировать тему ИИ">Сделать ИИ</button>
+          </div>
+          <p class="note" id="themeAiNote">ИИ использует твои настройки API (как в чате). Результат можно подправить ниже.</p>
+
+          <!-- Поля темы: заполняются ИИ или вручную -->
+          <div class="theme-form" id="themeForm" hidden>
+            <div class="theme-form-row">
+              <label class="theme-name">
+                <span>Название</span>
+                <input type="text" id="themeName" placeholder="Моя тема" />
+              </label>
+              <label class="theme-base">
+                <span>База</span>
+                <select id="themeBase">
+                  <option value="light">Светлая</option>
+                  <option value="dark">Тёмная</option>
+                </select>
+              </label>
+            </div>
+            <div class="theme-colors" id="themeColors"></div>
+            <div class="theme-form-actions">
+              <button type="button" id="btnThemePreview">Предпросмотр</button>
+              <button type="button" id="btnThemeSave" class="primary">Сохранить тему</button>
+              <button type="button" id="btnThemeCancel">Отмена</button>
+            </div>
+          </div>
+
+          <button type="button" id="btnNewTheme" class="theme-new-btn" title="Создать тему вручную">+ Новая тема вручную</button>
           <div class="theme-editor-list" id="customThemeList"></div>
         </div>
       </section>

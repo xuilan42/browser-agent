@@ -6,8 +6,10 @@ import {
   getCustomThemes,
   saveCustomTheme,
   removeCustomTheme,
+  THEME_VARS,
   SYSTEM_THEME_ID,
 } from '../lib/themes.js';
+import { generateTheme } from '../lib/themegen.js';
 
 const PRESETS = {
   openai: {
@@ -89,8 +91,7 @@ async function init() {
   await loadThemes();
   await populateThemeSelect();
   await renderCustomThemes();
-  const btnNewTheme = document.getElementById('btnNewTheme');
-  if (btnNewTheme) btnNewTheme.addEventListener('click', onNewTheme);
+  initThemeEditor();
   fill(settings);
   applyTheme(settings.theme);
   syncThemeSwitch(settings.theme);
@@ -192,21 +193,145 @@ async function populateThemeSelect() {
     themeSelect.appendChild(opt);
   };
   addOpt(SYSTEM_THEME_ID, 'Как в системе');
-  for (const t of themes) addOpt(t.id, t.name + (t.builtin ? '' : ' (своя)'));
+  for (const t of themes) {
+    if (t.id === '__preview__') continue;
+    addOpt(t.id, t.name + (t.builtin ? '' : ' (своя)'));
+  }
 
   if (current && [...themeSelect.options].some((o) => o.value === current)) {
     themeSelect.value = current;
   }
 }
 
-/** Создать свою тему на основе текущей выбранной (каркас: цвета наследуются от базы). */
-async function onNewTheme() {
-  const name = (window.prompt('Название темы:', 'Моя тема') || '').trim();
-  if (!name) return;
-  // база: если выбрана тёмная/light-производная — берём её; иначе light
-  const base = /dark/i.test(themeSelect.value) ? 'dark' : 'light';
+// ---- Редактор тем (ИИ + ручная правка) ----
+
+const themeIdea = document.getElementById('themeIdea');
+const btnThemeAi = document.getElementById('btnThemeAi');
+const themeAiNote = document.getElementById('themeAiNote');
+const themeForm = document.getElementById('themeForm');
+const themeNameEl = document.getElementById('themeName');
+const themeBaseEl = document.getElementById('themeBase');
+const themeColorsEl = document.getElementById('themeColors');
+
+/** Текущий id редактируемой темы (null — новая). */
+let editingThemeId = null;
+
+function initThemeEditor() {
+  buildColorInputs();
+  btnThemeAi?.addEventListener('click', onGenerateTheme);
+  document.getElementById('btnNewTheme')?.addEventListener('click', () => openThemeForm(null));
+  document.getElementById('btnThemePreview')?.addEventListener('click', previewDraftTheme);
+  document.getElementById('btnThemeSave')?.addEventListener('click', saveDraftTheme);
+  document.getElementById('btnThemeCancel')?.addEventListener('click', closeThemeForm);
+}
+
+/** Создаёт поля цвет+hex по каждой переменной темы. */
+function buildColorInputs() {
+  if (!themeColorsEl) return;
+  themeColorsEl.innerHTML = '';
+  for (const key of THEME_VARS) {
+    const row = document.createElement('label');
+    row.className = 'theme-color-row';
+    row.dataset.var = key;
+
+    const name = document.createElement('span');
+    name.textContent = key;
+
+    const swatch = document.createElement('input');
+    swatch.type = 'color';
+    swatch.dataset.role = 'swatch';
+
+    const hex = document.createElement('input');
+    hex.type = 'text';
+    hex.dataset.role = 'hex';
+    hex.placeholder = '#rrggbb / rgb() / …';
+    hex.spellcheck = false;
+
+    // синхронизация пикера и текстового поля
+    swatch.addEventListener('input', () => (hex.value = swatch.value));
+    hex.addEventListener('input', () => {
+      if (/^#[0-9a-f]{6}$/i.test(hex.value)) swatch.value = hex.value;
+    });
+
+    row.append(name, swatch, hex);
+    themeColorsEl.appendChild(row);
+  }
+}
+
+function openThemeForm(theme) {
+  editingThemeId = theme?.id || null;
+  themeNameEl.value = theme?.name || '';
+  themeBaseEl.value = theme?.base === 'dark' ? 'dark' : 'light';
+  const vars = theme?.vars || {};
+  for (const row of themeColorsEl.querySelectorAll('.theme-color-row')) {
+    const key = row.dataset.var;
+    const hex = row.querySelector('[data-role="hex"]');
+    const swatch = row.querySelector('[data-role="swatch"]');
+    hex.value = vars[key] || '';
+    if (/^#[0-9a-f]{6}$/i.test(vars[key] || '')) swatch.value = vars[key];
+  }
+  themeForm.hidden = false;
+}
+
+function closeThemeForm() {
+  themeForm.hidden = true;
+  editingThemeId = null;
+  applyTheme(themeSelect.value); // откат возможного предпросмотра
+}
+
+/** Собирает тему из полей редактора. */
+function readDraftTheme() {
+  const vars = {};
+  for (const row of themeColorsEl.querySelectorAll('.theme-color-row')) {
+    const val = row.querySelector('[data-role="hex"]').value.trim();
+    if (val) vars[row.dataset.var] = val;
+  }
+  return {
+    id: editingThemeId || undefined,
+    name: themeNameEl.value.trim() || 'Моя тема',
+    base: themeBaseEl.value === 'dark' ? 'dark' : 'light',
+    vars,
+  };
+}
+
+async function onGenerateTheme() {
+  const idea = themeIdea.value.trim();
+  if (!idea) {
+    flash2(themeAiNote, 'Напиши описание темы', 'err');
+    return;
+  }
+  btnThemeAi.disabled = true;
+  flash2(themeAiNote, 'Генерирую тему…', '');
   try {
-    const theme = await saveCustomTheme({ name, base, vars: {} });
+    const theme = await generateTheme(idea, read());
+    openThemeForm({ ...theme, id: null });
+    previewDraftTheme();
+    const note = theme.dropped.length
+      ? `Готово. Пропущено небезопасных значений: ${theme.dropped.length}. Проверь и сохрани.`
+      : 'Готово — проверь цвета и сохрани.';
+    flash2(themeAiNote, note, 'ok');
+  } catch (err) {
+    flash2(themeAiNote, err?.message || String(err), 'err');
+  } finally {
+    btnThemeAi.disabled = false;
+  }
+}
+
+/** Применить черновик к странице настроек на лету (без сохранения). */
+async function previewDraftTheme() {
+  const draft = readDraftTheme();
+  const tmpId = '__preview__';
+  await saveCustomTheme({ ...draft, id: tmpId, name: draft.name });
+  await loadThemes();
+  applyTheme(tmpId);
+  // временную тему держим только для превью — удалим при сохранении/отмене
+}
+
+async function saveDraftTheme() {
+  const draft = readDraftTheme();
+  try {
+    await removeCustomTheme('__preview__');
+    const theme = await saveCustomTheme(draft);
     await loadThemes();
     await populateThemeSelect();
     await renderCustomThemes();
@@ -214,17 +339,19 @@ async function onNewTheme() {
     applyTheme(theme.id);
     syncThemeSwitch(theme.id);
     await saveSettings({ theme: theme.id });
-    flash(saveStatus, `Тема «${theme.name}» создана. Цвета пока как у базовой — редактор в разработке.`, 'ok');
+    themeForm.hidden = true;
+    editingThemeId = null;
+    flash(saveStatus, `Тема «${theme.name}» сохранена и применена`, 'ok');
   } catch (err) {
     flash(saveStatus, err?.message || String(err), 'err');
   }
 }
 
-/** Список пользовательских тем с кнопкой удаления. */
+/** Список пользовательских тем: редактировать / удалить. */
 async function renderCustomThemes() {
   const box = document.getElementById('customThemeList');
   if (!box) return;
-  const custom = await getCustomThemes();
+  const custom = (await getCustomThemes()).filter((t) => t.id !== '__preview__');
   box.innerHTML = '';
   if (!custom.length) return;
 
@@ -233,12 +360,18 @@ async function renderCustomThemes() {
     row.className = 'theme-row';
     const label = document.createElement('span');
     label.textContent = `${t.name} (${t.base})`;
+
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.textContent = 'Изменить';
+    edit.onclick = () => openThemeForm(t);
+
     const del = document.createElement('button');
     del.type = 'button';
+    del.className = 'theme-del';
     del.textContent = 'Удалить';
     del.onclick = async () => {
       await removeCustomTheme(t.id);
-      // если удалили активную — вернуться к системной
       const settings = await getSettings();
       if (settings.theme === t.id) await saveSettings({ theme: SYSTEM_THEME_ID });
       await loadThemes();
@@ -246,9 +379,15 @@ async function renderCustomThemes() {
       await renderCustomThemes();
       applyTheme((await getSettings()).theme);
     };
-    row.append(label, del);
+    row.append(label, edit, del);
     box.appendChild(row);
   }
+}
+
+function flash2(el, text, cls) {
+  if (!el) return;
+  el.textContent = text;
+  el.className = cls ? `note ${cls}` : 'note';
 }
 
 function fill(settings) {
